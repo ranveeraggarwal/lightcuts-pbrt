@@ -1,0 +1,29 @@
+*.pyc
+*~
+.sconsign.dblite
+
+# Build folders:
+src/objs
+src/bin
+src/build
+
+# Common renderer output file:
+pbrt.exr
+
+# These files are generated during the build process:
+#src/core/pbrtlex.cpp
+#src/core/pbrtparse.cpp
+#src/core/pbrtparse.hh
+src/core/pbrtparse.output
+
+# Visual studio files
+src/pbrt.vs*/*.sdf
+src/pbrt.vs*/*.opensdf
+src/pbrt.vs*/ipch
+src/pbrt.vs*/*.suo
+src/pbrt.vs*/*.user
+
+# VS Build folders
+tmp/
+bin/
+lib/
