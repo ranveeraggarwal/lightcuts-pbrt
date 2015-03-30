@@ -15,4 +15,8 @@ After cloning this repository or downloading the source code, run
 in the src/ folder and generate the binaries.
 
 ##Running
+In the root directory, run
+
+	./src/bin/pbrt scenes/<pbrtfilename> --outputfile result.tga
+
 
