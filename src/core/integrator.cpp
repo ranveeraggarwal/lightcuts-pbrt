@@ -41,7 +41,97 @@
 Integrator::~Integrator() {
 }
 
-
+Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spectrum brdf, Spectrum intensities) {
+    double err = 1;
+    bool inf = false;
+    int i;
+    double dist = 0;
+    // Calculate minimum distance from bounding box
+    for(i = 0; i < 3; i++) {
+        if(p[i] < bb_low[i])
+            dist += (p[i] - bb_low[i])*(p[i] - bb_low[i]);
+        else if(p[i] > bb_high[i])
+            dist += (p[i] - bb_high[i])*(p[i] - bb_high[i]);
+        else {
+            inf = true;
+            break;
+        }
+    }
+    // Infinite bound if p is inside the bounding box
+    if(inf) {
+        return -1 * intensities;
+    }
+    // Bound of the geometric term
+    err *= 1.0 / dist;
+    n /= n.Length();
+    float M[3][3]; //Rotation matrix from normal to z-axis
+    float v[3][3];
+    float vsq[3][3];
+    int j;
+    for(i = 0; i < 3; i++) {
+        for(j = 0; j < 3; j++) {
+            if(i == j)
+                M[i][j] = 1;
+            else
+                M[i][j] = 0;
+            v[i][j] = 0;
+            vsq[i][j] = 0;
+        }
+    }
+    float vx = n[1];
+    float vy = -(n[2]);
+    float s = sqrtf(vx*vx + vy*vy);
+    Point bb_low2, bb_high2;
+    for(i = 0; i < 3; i++) {
+        bb_low2[i] = bb_low[i] - p[i];
+        bb_high2[i] = bb_high[i] - p[i];
+    }
+    float c = n[3];
+    v[0][2] = vy;
+    M[0][2] += vy;
+    v[1][2] = -vx;
+    M[1][2] += -vx;
+    v[2][0] = -vy;
+    M[2][0] += -vy;
+    v[2][1] = vx;
+    M[2][1] += vx;
+    float temp = (1 - c) / (s * s);
+    int k;
+    for(i = 0; i < 3; i++) {
+        for(j = 0; j < 3; j++) {
+            for(k = 0; k < 3; k++) {
+                vsq[i][j] += v[i][k] * v[k][j];
+            }
+            M[i][j] += vsq[i][j] * temp;
+        }
+    }
+    Point bb_low3, bb_high3;
+    // Transform and align normal to the z-axis
+    for(i = 0; i < 3; i++) {
+        for(k = 0; k < 3; k++) {
+            bb_low3[i] += M[i][k]*bb_low2[k];
+            bb_high3[i] += M[i][k]*bb_high2[k];
+        }
+    }
+    // For cos theta bound, use maximum z and minimum absolute x and y
+    float max_z = bb_high3[2];
+    if(bb_low3[2] > max_z)
+        max_z = bb_low3[2];
+    // Negative maximum z means the none of the light sources are in the reflection hemisphere. Bound  is 0.
+    if(max_z < 0)
+        return 0 * intensities;
+    float min_x, min_y;
+    if((bb_low3[0] < 0 && bb_high3[0] > 0) || (bb_high3[0] < 0 && bb_low3[0] > 0))
+        min_x = 0;
+    else
+        min_x = min(fabsf(bb_low3[0]), fabsf(bb_high3[0]));
+    if((bb_low3[1] < 0 && bb_high3[1] > 0) || (bb_high3[1] < 0 && bb_low3[1] > 0))
+        min_y = 0;
+    else
+        min_y = min(fabsf(bb_low3[1]), fabsf(bb_high3[1]));
+    err *= max_z / sqrtf((max_z * max_z) + (min_y * min_y) + (min_x * min_x));
+    return err * brdf * intensities; // Multiply by the constant lambertian brdf and the sum of light intensities
+}
 
 // Integrator Utility Functions
 Spectrum UniformSampleAllLights(const Scene *scene,
