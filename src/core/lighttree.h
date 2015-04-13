@@ -18,9 +18,32 @@ class LightNode
 	Point maxBoundBox;
 	bool isLeaf;
 
+	//This will be called while constructing the tree
 	LightNode cluster(LightNode light1, LightNode light2)
 	{
-		
+		Lightnode aCluster = new Lightnode();
+		if (light1.Intensity > light2.Intensity)
+		{
+			aCluster.mainLight = light1;
+		}
+		else
+		{
+			aCluster.mainLight = light2;
+		}
+		aCluster.isLeaf = false;
+		int dist1 = sqrt((light1.Point.x*light1.Point.x) + (light1.Point.y*light1.Point.y) + (light1.Point.z*light1.Point.z));
+		int dist2 = sqrt((light2.Point.x*light2.Point.x) + (light2.Point.y*light2.Point.y) + (light2.Point.z*light2.Point.z));
+		if (dist1 < dist2) 
+		{
+			aCluster.minBoundBox = light1.Point;
+			aCluster.maxBoundBox = light2.Point;
+		}
+		else
+		{
+			aCluster.minBoundBox = light2.Point;
+			aCluster.maxBoundBox = light1.Point;	
+		}
+		return aCluster;
 	}
 
 	LightNode(PointLight leafLight)
