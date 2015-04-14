@@ -13,49 +13,49 @@
 
 class LightNode
 {
-	Light mainLight;
+	Light *mainLight;
 	Spectrum Intensity;
 	Point minBoundBox;
 	Point maxBoundBox;
-	Light leftChild;
-	Light rightChild;
+	Light *leftChild;
+	Light *rightChild;
 	bool isLeaf;
 
 	//This will be called while constructing the tree
-	LightNode cluster(LightNode light1, LightNode light2)
+	LightNode cluster(LightNode *light1, LightNode *light2)
 	{
-		Lightnode aCluster = new Lightnode();
+		Lightnode *aCluster = new Lightnode();
 		//Calculate children
-		leftChild = light1;
-		rightChild = light2;
+		aCluster->leftChild = light1;
+		aCluster->rightChild = light2;
 		//New Intensity
-		aCluster.Intensity = light1.Intensity + light2.Intensity;
+		aCluster->Intensity = light1->Intensity + light2.Intensity;
 		//The new representative light source 
-		if (light1.Intensity > light2.Intensity)
+		if (light1->Intensity > light2->Intensity)
 		{
-			aCluster.mainLight = light1;
+			aCluster->mainLight = light1;
 		}
 		else
 		{
-			aCluster.mainLight = light2;
+			aCluster->mainLight = light2;
 		}
 		//It's not a leaf
-		aCluster.isLeaf = false;
+		aCluster->isLeaf = false;
 		//Recalculate the bounding box
-		aCluster.minBoundBox.x = min(light1.minBoundBox.x, light2.minBoundBox.x);
-		aCluster.minBoundBox.y = min(light1.minBoundBox.y, light2.minBoundBox.y);
-		aCluster.minBoundBox.z = min(light1.minBoundBox.z, light2.minBoundBox.z);
-		aCluster.maxBoundBox.x = max(light1.maxBoundBox.x, light2.maxBoundBox.x);
-		aCluster.maxBoundBox.y = max(light1.maxBoundBox.y, light2.maxBoundBox.y);
-		aCluster.maxBoundBox.z = max(light1.maxBoundBox.z, light2.maxBoundBox.z);
+		aCluster->minBoundBox.x = min(light1->minBoundBox.x, light2->minBoundBox.x);
+		aCluster->minBoundBox.y = min(light1->minBoundBox.y, light2->minBoundBox.y);
+		aCluster->minBoundBox.z = min(light1->minBoundBox.z, light2->minBoundBox.z);
+		aCluster->maxBoundBox.x = max(light1->maxBoundBox.x, light2->maxBoundBox.x);
+		aCluster->maxBoundBox.y = max(light1->maxBoundBox.y, light2->maxBoundBox.y);
+		aCluster->maxBoundBox.z = max(light1->maxBoundBox.z, light2->maxBoundBox.z);
 		return aCluster;
 	}
 
-	LightNode(PointLight leafLight)
+	LightNode(PointLight *leafLight)
 	{
 		mainLight = leafLight;
-		minBoundBox = leafLight.lightPos;
-		maxBoundBox = leafLight.lightPos;
+		minBoundBox = leafLight->lightPos;
+		maxBoundBox = leafLight->lightPos;
 		isLeaf = true;
 	}
 };
