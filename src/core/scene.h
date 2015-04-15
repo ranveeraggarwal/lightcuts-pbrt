@@ -40,6 +40,7 @@
 #include "pbrt.h"
 #include "primitive.h"
 #include "integrator.h"
+#include "lighttree.h"
 
 // Scene Declarations
 class Scene {
@@ -60,7 +61,7 @@ public:
         return hit;
     }
     const BBox &WorldBound() const;
-
+    void MakeLightTree();
     // Scene Public Data
     Primitive *aggregate;
     vector<Light *> lights;
