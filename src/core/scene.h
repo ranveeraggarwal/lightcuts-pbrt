@@ -64,6 +64,7 @@ public:
     // Scene Public Data
     Primitive *aggregate;
     vector<Light *> lights;
+    LightNode *lighttree;
     VolumeRegion *volumeRegion;
     BBox bound;
 };

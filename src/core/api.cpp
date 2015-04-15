@@ -1163,6 +1163,7 @@ void pbrtWorldEnd() {
     // Create scene and render
     Renderer *renderer = renderOptions->MakeRenderer();
     Scene *scene = renderOptions->MakeScene();
+    scene->MakeLightTree();
     if (scene && renderer) renderer->Render(scene);
     TasksCleanup();
     delete renderer;
