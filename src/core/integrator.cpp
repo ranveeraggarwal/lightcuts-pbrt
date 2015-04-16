@@ -38,6 +38,7 @@
 #include "montecarlo.h"
 #include "lighttree.h"
 #include <vector>
+#include <iostream>
 #define THRESHOLD 0.02
 using namespace std;
 // Integrator Method Definitions
@@ -55,40 +56,33 @@ bool operator <(const cutvertex& a, const cutvertex& b) {
     float colb[3];
     a.error.ToRGB(cola);
     b.error.ToRGB(colb);
-    if(b[0] < 0 || b[1] < 0 || b[2] < 0)
+    if(colb[0] < 0 || colb[1] < 0 || colb[2] < 0)
         return true;
-    if(a[0] + a[1] + a[2] < b[0] + b[1] + b[2])
+    if(cola[0] + cola[1] + cola[2] < colb[0] + colb[1] + colb[2])
         return true;
+    return false;
 }
 #define SetError(v) \
     do { \
     if(v.l->isLeaf) \
         v.error = zero; \
-    else \
-        v.error = ErrorBound(p, n, v.l->minBoundBox, v.l->maxBoundBox, v.l->mainLight->lighPos, bsdf->f(wo, wi, BSDF_ALL & ~BSDF_SPECULAR), v.l->intensity);\
+    else { \
+        v.error = ErrorBound(p, n, v.l->minBoundBox, v.l->maxBoundBox, v.l->mainLight->lightPos, bsdf->f(wo, wi, BxDFType(BSDF_ALL & ~BSDF_SPECULAR)), v.l->Intensity);\
+    } \
     } while(0)
 
 #define Illuminate(v) \
     do { \
         PointLight *light = v.l->mainLight; \
         Spectrum temp = light->Intensity; \
-        light->Intensity = v.l->intensity; \
-        int nSamples = lightSampleOffsets ? \
-                       lightSampleOffsets[i].nSamples : 1; \
-        // Estimate direct lighting from _light_ samples \
+        light->Intensity = v.l->Intensity; \
+        int nSamples = 1; \
         Spectrum Ld(0.); \
         for (int j = 0; j < nSamples; ++j) { \
-            // Find light and BSDF sample values for direct lighting estimate \
             LightSample lightSample; \
             BSDFSample bsdfSample; \
-            if (lightSampleOffsets != NULL && bsdfSampleOffsets != NULL) { \
-                lightSample = LightSample(sample, lightSampleOffsets[i], j); \
-                bsdfSample = BSDFSample(sample, bsdfSampleOffsets[i], j); \
-            } \
-            else { \
-                lightSample = LightSample(rng); \
-                bsdfSample = BSDFSample(rng); \
-            } \
+            lightSample = LightSample(rng); \
+            bsdfSample = BSDFSample(rng); \
             Ld += EstimateDirect(scene, renderer, arena, light, p, n, wo, \
                 rayEpsilon, time, bsdf, rng, lightSample, bsdfSample, \
                 BxDFType(BSDF_ALL & ~BSDF_SPECULAR)); \
@@ -134,15 +128,15 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
             vsq[i][j] = 0;
         }
     }
-    float vx = n[1];
-    float vy = -(n[2]);
+    float vx = n[0];
+    float vy = -(n[1]);
     float s = sqrtf(vx*vx + vy*vy);
     Point bb_low2, bb_high2;
     for(i = 0; i < 3; i++) {
         bb_low2[i] = bb_low[i] - p[i];
         bb_high2[i] = bb_high[i] - p[i];
     }
-    float c = n[3];
+    float c = n[2];
     v[0][2] = vy;
     M[0][2] += vy;
     v[1][2] = -vx;
@@ -199,15 +193,18 @@ Spectrum UniformSampleAllLights(const Scene *scene,
     Spectrum L(0.);
     Spectrum zero(0.);
     Vector wi;
-    wi = p + n;
+    wi.x = p.x + n.x;
+    wi.y = p.y + n.y;
+    wi.z = p.z + n.z;
     vector<cutvertex> cut;
     cutvertex v;
     Spectrum total;
     v.l = scene->lighttree;
     SetError(v);
-    Illuminate(V);
+    Illuminate(v);
     total = v.illumination;
-    while(v.size() < 1000) {
+    cut.push_back(v);
+    while(cut.size() < 1000) {
         pop_heap(cut.begin(), cut.end());
         v = cut[cut.size() - 1];
         float err[3];
@@ -217,10 +214,10 @@ Spectrum UniformSampleAllLights(const Scene *scene,
         if(err[0] <= THRESHOLD * intensity[0] && err[1] <= THRESHOLD * intensity[1] && err[2] <= THRESHOLD * intensity[2])
             break;
         cut.pop_back();
-        total -= v.illumination;
+        total = total - v.illumination;
         cutvertex v1, v2;
-        v1.l = v.l->left;
-        v2.l = v.l->right;
+        v1.l = v.l->leftChild;
+        v2.l = v.l->rightChild;
         SetError(v1);
         SetError(v2);
         Illuminate(v1);

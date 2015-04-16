@@ -40,7 +40,11 @@
 #include "parallel.h"
 #include "progressreporter.h"
 #include "renderer.h"
+#include <iostream>
 #include <cstdlib>
+#include <list>
+#include <vector>
+using namespace std;
 // Scene Method Definitions
 Scene::~Scene() {
     delete aggregate;
@@ -81,44 +85,54 @@ Spectrum CalcCost(LightNode * light1, LightNode * light2) {
     return dist * (light1->Intensity + light2->Intensity);
 }
 
+float CompareSpectra(Spectrum &a, Spectrum &b) {
+    float x[3];
+    a.ToRGB(x);
+    float y[3];
+    b.ToRGB(y);
+    return (x[0] + x[1] + x[2]) - (y[0] + y[1] + y[2]);
+}
+
 void Scene::MakeLightTree() {
+    cout << "Constructing Light Tree...\n";
     list<int> valid;
     int n = lights.size();
     vector<LightNode *> v(n);
-    vector< vector<Spectrum> > costs;
+    vector< vector<Spectrum> > costs(n);
     int i;
     for(i = 0; i < n; i++) {
-        v[i] = new LightNode(lights[i]);
+        v[i] = new LightNode((PointLight *)lights[i]);
         valid.push_back(i);
     }
     int j;
     for(i = 0; i < n; i++) {
-        vector<Spectrum> temp;
-        costs.push_back(temp);
-        for(j = i; j < n; j++) {
+        for(j = 0; j < n; j++) {
             Spectrum s(0.);
             if(i >= j) {
                 costs[i].push_back(s);
                 continue;
             }
             costs[i].push_back(CalcCost(v[i], v[j]));
+            //float wtf[3];
+            //costs[i][j].ToRGB(wtf);
+            //std::cout << "Cost of " << i << " and " << j << " is " << wtf[0] + wtf[1] + wtf[2] << endl;
         }
     }
+    list<int>::iterator it1;
     while(valid.size() > 1) {
         int min_i = -1;
         int min_j = -1;
         list<int>::iterator min_iteratori;
         list<int>::iterator min_iteratorj;
         Spectrum min_cost;
-        list<int>::iterator it1;
         for(it1 = valid.begin(); it1 != valid.end(); it1++) {
             list<int>::iterator it2 = it1;
             for(it2++; it2 != valid.end(); it2++) {
                 if(min_i == -1 || (CompareSpectra(costs[*it1][*it2], costs[min_i][min_j]) < 0)) {
                     min_i = *it1;
                     min_j = *it2;
-                    min_iteratori = *it1;
-                    min_iteratorj = *it2;
+                    min_iteratori = it1;
+                    min_iteratorj = it2;
                 }
             }
         }
@@ -128,29 +142,50 @@ void Scene::MakeLightTree() {
         v[min_j]->Intensity.ToRGB(rgbj);
         float pi = rgbi[0] + rgbi[1] + rgbi[2];
         float pj = rgbj[0] + rgbj[1] + rgbj[2];
+        //std::cout << pi << " " << pj << "\n";
         int x = 1000 * (pi / (pi + pj));
-        if(rand() % 1000 <= x) {
+        if((rand() % 1000) <= x) {
+            //cout << "Clustering lights " << min_i << " and " << min_j << endl;
             v[min_i] = Cluster(v[min_i], v[min_j]);
             valid.erase(min_iteratorj);
             for(it1 = valid.begin(); it1 != valid.end(); it1++) {
-                if(min_i < *it1)
+                if(min_i < *it1) {
                     costs[min_i][*it1] = CalcCost(v[min_i], v[*it1]);
-                else if(min_i > *it1)
+                    //float wtf[3];
+                    //costs[min_i][*it1].ToRGB(wtf);
+                    //cout << "New Cost of " << min_i << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
+                }
+                else if(min_i > *it1) {
                     costs[*it1][min_i] = CalcCost(v[min_i], v[*it1]);
+                    //float wtf[3];
+                    //costs[*it1][min_i].ToRGB(wtf);
+                    //cout << "New Cost of " << min_i << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
+                }
             }
         }
         else {
+            //cout << "Clustering lights " << min_j << " and " << min_i << endl;
             v[min_j] = Cluster(v[min_j], v[min_i]);
             valid.erase(min_iteratori);
             for(it1 = valid.begin(); it1 != valid.end(); it1++) {
-                if(min_j < *it1)
+                if(min_j < *it1) {
                     costs[min_j][*it1] = CalcCost(v[min_j], v[*it1]);
-                else if(min_j > *it1)
+                    float wtf[3];
+                    costs[min_j][*it1].ToRGB(wtf);
+                    //cout << "New Cost of " << min_j << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
+                }
+                else if(min_j > *it1) {
                     costs[*it1][min_j] = CalcCost(v[min_j], v[*it1]);
+                    //float wtf[3];
+                    //costs[*it1][min_j].ToRGB(wtf);
+                    //cout << "New Cost of " << min_j << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
+                }
             }
 
         }
+        //cout << endl;
     }
     it1 = valid.begin();
     lighttree = v[*it1];
+    cout << "Light Tree Constructed.\n";
 }

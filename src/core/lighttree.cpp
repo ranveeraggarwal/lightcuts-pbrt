@@ -1,14 +1,15 @@
+#include "lighttree.h"
 
-LightNode * LightNode::cluster(LightNode *light1, LightNode *light2)
+LightNode * Cluster(LightNode *light1, LightNode *light2)
 {
-	Lightnode *aCluster = new Lightnode();
+	LightNode *aCluster = new LightNode();
 	//Calculate children
 	aCluster->leftChild = light1;
 	aCluster->rightChild = light2;
 	//New Intensity
-	aCluster->Intensity = light1->Intensity + light2.Intensity;
+	aCluster->Intensity = light1->Intensity + light2->Intensity;
 	//The new representative light source 
-	aCluster->mainLight = light1;
+	aCluster->mainLight = light1->mainLight;
 	//It's not a leaf
 	aCluster->isLeaf = false;
 	//Recalculate the bounding box
@@ -26,5 +27,9 @@ LightNode::LightNode(PointLight *leafLight)
 		mainLight = leafLight;
 		minBoundBox = leafLight->lightPos;
 		maxBoundBox = leafLight->lightPos;
+        Intensity = leafLight->Intensity;
 		isLeaf = true;
 	}
+
+LightNode::LightNode() {
+}

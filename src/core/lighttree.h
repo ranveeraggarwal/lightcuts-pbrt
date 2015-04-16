@@ -1,5 +1,5 @@
-#ifndef PBRT_CORE_INTEGRATOR_H
-#define PBRT_CORE_INTEGRATOR_H
+#ifndef PBRT_CORE_LIGHTTREE_H
+#define PBRT_CORE_LIGHTTREE_H
 
 #include "pbrt.h"
 #include "primitive.h"
@@ -10,20 +10,24 @@
 #include "material.h"
 #include "probes.h"
 #include "renderer.h"
+#include "../lights/point.h"
 
 class LightNode
 {
-	Light *mainLight;
+public:
+	PointLight *mainLight;
     int index;
 	Spectrum Intensity;
 	Point minBoundBox;
 	Point maxBoundBox;
-	Light *leftChild;
-	Light *rightChild;
+	LightNode *leftChild;
+	LightNode *rightChild;
 	bool isLeaf;
 
 	//This will be called while constructing the tree
-	LightNode *cluster(LightNode *light1, LightNode *light2);
 	
 	LightNode(PointLight *leafLight);
+	LightNode();
 };
+LightNode * Cluster(LightNode *light1, LightNode *light2);
+#endif
