@@ -3,9 +3,18 @@ Vanilla PBRT
 real	13m25.169s
 user	104m12.830s
 sys	0m2.843s
-Lightcuts:
+Lightcuts
 real	6m50.938s
 user	53m41.590s
 sys	0m2.299s
 
-1000 Lights
+1000 Lights (very randomly placed):
+Vanilla PBRT
+real	73m0.667s
+user	562m25.452s
+sys	0m11.587s
+Lightcuts
+real	26m10.716s
+user	207m41.714s
+sys	0m7.593s
+
