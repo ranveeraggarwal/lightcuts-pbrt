@@ -1,0 +1,11 @@
+200 lights:
+Vanilla PBRT
+real	13m25.169s
+user	104m12.830s
+sys	0m2.843s
+Lightcuts:
+real	6m50.938s
+user	53m41.590s
+sys	0m2.299s
+
+1000 Lights
