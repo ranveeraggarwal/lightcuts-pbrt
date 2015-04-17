@@ -227,7 +227,7 @@ Spectrum UniformSampleAllLights(const Scene *scene,
         v.error.ToRGB(err);
         total.ToRGB(intensity);
         // Check if error is below the threshold. If so, we are done
-        if(err[0] >= 0 && err[1] >= 0 && er[2] >= 0 && err[0] <= THRESHOLD * intensity[0] && err[1] <= THRESHOLD * intensity[1] && err[2] <= THRESHOLD * intensity[2])
+        if(err[0] >= 0 && err[1] >= 0 && err[2] >= 0 && err[0] <= THRESHOLD * intensity[0] && err[1] <= THRESHOLD * intensity[1] && err[2] <= THRESHOLD * intensity[2])
             break;
         // If not, refine the cut by subdividing this vertex
         cut.pop_back(); // Remove the vertex from the cut
