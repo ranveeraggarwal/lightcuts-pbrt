@@ -134,8 +134,8 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
             vsq[i][j] = 0;
         }
     }
-    float vx = n[0];
-    float vy = -(n[1]);
+    float vx = n[1];
+    float vy = -(n[0]);
     float s = sqrtf(vx*vx + vy*vy);
     Point bb_low2, bb_high2;
     for(i = 0; i < 3; i++) {
