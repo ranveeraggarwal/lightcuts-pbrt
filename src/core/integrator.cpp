@@ -58,6 +58,8 @@ bool operator <(const cutvertex& a, const cutvertex& b) { // Compare cut vertice
     b.error.ToRGB(colb);
     if(colb[0] < 0 || colb[1] < 0 || colb[2] < 0) // Negative value means infinite error
         return true;
+    if(cola[0] < 0 || cola[1] < 0 || cola[2] < 0)
+	return false;
     if(cola[0] + cola[1] + cola[2] < colb[0] + colb[1] + colb[2])
         return true;
     return false;
@@ -144,7 +146,7 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
         bb_high2[i] = bb_high[i] - p[i];
     }
     int k;
-    if(fabsf(s) < 0.00001) {
+    if(fabsf(s) < 0.001) {
         if(c < 0) {
             M[2][2] = -1;
         }
@@ -183,7 +185,7 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
     if(bb_low3[2] > max_z)
         max_z = bb_low3[2];
     // Negative maximum z means that none of the light sources are in the reflection hemisphere. Bound is 0.
-    if(max_z < 0)
+    if(max_z < 0.001)
         return 0 * intensities;
     float min_x, min_y;
     if((bb_low3[0] < 0 && bb_high3[0] > 0) || (bb_high3[0] < 0 && bb_low3[0] > 0))
