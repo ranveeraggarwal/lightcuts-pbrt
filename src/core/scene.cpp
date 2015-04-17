@@ -72,6 +72,7 @@ const BBox &Scene::WorldBound() const {
 Spectrum CalcCost(LightNode * light1, LightNode * light2) {
     Point minBoundBox;
     Point maxBoundBox;
+    // Compute the new bounding box
 	minBoundBox.x = min(light1->minBoundBox.x, light2->minBoundBox.x);
 	minBoundBox.y = min(light1->minBoundBox.y, light2->minBoundBox.y);
 	minBoundBox.z = min(light1->minBoundBox.z, light2->minBoundBox.z);
@@ -82,7 +83,7 @@ Spectrum CalcCost(LightNode * light1, LightNode * light2) {
     dist = (minBoundBox.x - maxBoundBox.x) * (minBoundBox.x - maxBoundBox.x);
     dist += (minBoundBox.y - maxBoundBox.y) * (minBoundBox.y - maxBoundBox.y);
     dist += (minBoundBox.z - maxBoundBox.z) * (minBoundBox.z - maxBoundBox.z);
-    return dist * (light1->Intensity + light2->Intensity);
+    return dist * (light1->Intensity + light2->Intensity); // Cost is Sum of intensities multiplied by the square of diagonal length of the bounding box
 }
 
 float CompareSpectra(Spectrum &a, Spectrum &b) {
@@ -95,36 +96,34 @@ float CompareSpectra(Spectrum &a, Spectrum &b) {
 
 void Scene::MakeLightTree() {
     cout << "Constructing Light Tree...\n";
-    list<int> valid;
+    list<int> valid; // List of currently representative lights (root of each seperate subtree). Reduces by 1 on every clustering.
     int n = lights.size();
-    vector<LightNode *> v(n);
-    vector< vector<Spectrum> > costs(n);
+    vector<LightNode *> v(n); // Vector of upper most LightNode represented by a light
+    vector< vector<Spectrum> > costs(n); // Cost matrix for clustering of two LightNodes
     int i;
     for(i = 0; i < n; i++) {
-        v[i] = new LightNode((PointLight *)lights[i]);
-        valid.push_back(i);
+        v[i] = new LightNode((PointLight *)lights[i]); // Initialise with leaf LightNodes
+        valid.push_back(i); // Initially, all lights are representative
     }
     int j;
     for(i = 0; i < n; i++) {
         for(j = 0; j < n; j++) {
             Spectrum s(0.);
-            if(i >= j) {
+            if(i >= j) { // To avoid duplication, the matrix is kept upper triangular
                 costs[i].push_back(s);
                 continue;
             }
-            costs[i].push_back(CalcCost(v[i], v[j]));
-            //float wtf[3];
-            //costs[i][j].ToRGB(wtf);
-            //std::cout << "Cost of " << i << " and " << j << " is " << wtf[0] + wtf[1] + wtf[2] << endl;
+            costs[i].push_back(CalcCost(v[i], v[j])); // Initialise cost matrix with pairwise costs
         }
     }
     list<int>::iterator it1;
-    while(valid.size() > 1) {
+    while(valid.size() > 1) { // Do until only the root node is left
         int min_i = -1;
         int min_j = -1;
         list<int>::iterator min_iteratori;
         list<int>::iterator min_iteratorj;
         Spectrum min_cost;
+        // Find the pair of subtrees with the minimum cost
         for(it1 = valid.begin(); it1 != valid.end(); it1++) {
             list<int>::iterator it2 = it1;
             for(it2++; it2 != valid.end(); it2++) {
@@ -142,50 +141,26 @@ void Scene::MakeLightTree() {
         v[min_j]->Intensity.ToRGB(rgbj);
         float pi = rgbi[0] + rgbi[1] + rgbi[2];
         float pj = rgbj[0] + rgbj[1] + rgbj[2];
-        //std::cout << pi << " " << pj << "\n";
         int x = 1000 * (pi / (pi + pj));
-        if((rand() % 1000) <= x) {
-            //cout << "Clustering lights " << min_i << " and " << min_j << endl;
-            v[min_i] = Cluster(v[min_i], v[min_j]);
-            valid.erase(min_iteratorj);
-            for(it1 = valid.begin(); it1 != valid.end(); it1++) {
-                if(min_i < *it1) {
-                    costs[min_i][*it1] = CalcCost(v[min_i], v[*it1]);
-                    //float wtf[3];
-                    //costs[min_i][*it1].ToRGB(wtf);
-                    //cout << "New Cost of " << min_i << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
-                }
-                else if(min_i > *it1) {
-                    costs[*it1][min_i] = CalcCost(v[min_i], v[*it1]);
-                    //float wtf[3];
-                    //costs[*it1][min_i].ToRGB(wtf);
-                    //cout << "New Cost of " << min_i << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
-                }
+        // Randomly choose the representative light with probability proportional to the intensity
+        if((rand() % 1000) > x) {
+            int _temp_ = min_i;
+            min_i = min_j;
+            min_j = _temp_;
+            min_iteratorj = min_iteratori;
+        }
+        v[min_i] = Cluster(v[min_i], v[min_j]); // Cluster the LightNodes to create a new LightNode
+        valid.erase(min_iteratorj); // Remove the non-representative light from the valid list
+        for(it1 = valid.begin(); it1 != valid.end(); it1++) { // Update the cost of all affected pairs (The ones with the representative light in the pair)
+            if(min_i < *it1) {
+                costs[min_i][*it1] = CalcCost(v[min_i], v[*it1]);
+            }
+            else if(min_i > *it1) {
+                costs[*it1][min_i] = CalcCost(v[min_i], v[*it1]);
             }
         }
-        else {
-            //cout << "Clustering lights " << min_j << " and " << min_i << endl;
-            v[min_j] = Cluster(v[min_j], v[min_i]);
-            valid.erase(min_iteratori);
-            for(it1 = valid.begin(); it1 != valid.end(); it1++) {
-                if(min_j < *it1) {
-                    costs[min_j][*it1] = CalcCost(v[min_j], v[*it1]);
-                    float wtf[3];
-                    costs[min_j][*it1].ToRGB(wtf);
-                    //cout << "New Cost of " << min_j << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
-                }
-                else if(min_j > *it1) {
-                    costs[*it1][min_j] = CalcCost(v[min_j], v[*it1]);
-                    //float wtf[3];
-                    //costs[*it1][min_j].ToRGB(wtf);
-                    //cout << "New Cost of " << min_j << " and " << *it1 << " is " << wtf[0]+wtf[1]+wtf[2];
-                }
-            }
-
-        }
-        //cout << endl;
     }
     it1 = valid.begin();
-    lighttree = v[*it1];
+    lighttree = v[*it1]; // Set the lighttree variable of the Scene object to the root node
     cout << "Light Tree Constructed.\n";
 }

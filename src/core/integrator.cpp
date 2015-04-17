@@ -51,17 +51,19 @@ struct cutvertex_struct {
 };
 typedef struct cutvertex_struct cutvertex;
 
-bool operator <(const cutvertex& a, const cutvertex& b) {
+bool operator <(const cutvertex& a, const cutvertex& b) { // Compare cut vertices on the basis of error
     float cola[3];
     float colb[3];
     a.error.ToRGB(cola);
     b.error.ToRGB(colb);
-    if(colb[0] < 0 || colb[1] < 0 || colb[2] < 0)
+    if(colb[0] < 0 || colb[1] < 0 || colb[2] < 0) // Negative value means infinite error
         return true;
     if(cola[0] + cola[1] + cola[2] < colb[0] + colb[1] + colb[2])
         return true;
     return false;
 }
+
+// Set zero error for leaf. Call ErrorBound for others.
 #define SetError(v) \
     do { \
     if(v.l->isLeaf) \
@@ -71,6 +73,7 @@ bool operator <(const cutvertex& a, const cutvertex& b) {
     } \
     } while(0)
 
+// Use PBRT's illumination computation
 #define Illuminate(v) \
     do { \
         PointLight *light = v.l->mainLight; \
@@ -91,6 +94,7 @@ bool operator <(const cutvertex& a, const cutvertex& b) {
         light->Intensity = temp; \
     } while(0)
 
+// Function for the upper bound on error
 Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spectrum brdf, Spectrum intensities) {
     double err = 1;
     bool inf = false;
@@ -107,13 +111,15 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
             break;
         }
     }
-    // Infinite bound if p is inside the bounding box
+    // Infinite error bound if p is inside the bounding box
     if(inf) {
         return -1 * intensities;
     }
     // Bound of the geometric term
     err *= 1.0 / dist;
     n /= n.Length();
+    // To bound the cosine term, align normal to the z-axis 
+    // and take maximum z-coordinate and minimum absolute values of x and y coordinates.
     float M[3][3]; //Rotation matrix from normal to z-axis
     float v[3][3];
     float vsq[3][3];
@@ -155,8 +161,10 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
             M[i][j] += vsq[i][j] * temp;
         }
     }
+    // Rotation Matrix computed
     Point bb_low3, bb_high3;
     // Transform and align normal to the z-axis
+    // Apply the transform to the bounding box points
     for(i = 0; i < 3; i++) {
         for(k = 0; k < 3; k++) {
             bb_low3[i] += M[i][k]*bb_low2[k];
@@ -167,7 +175,7 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
     float max_z = bb_high3[2];
     if(bb_low3[2] > max_z)
         max_z = bb_low3[2];
-    // Negative maximum z means the none of the light sources are in the reflection hemisphere. Bound  is 0.
+    // Negative maximum z means that none of the light sources are in the reflection hemisphere. Bound is 0.
     if(max_z < 0)
         return 0 * intensities;
     float min_x, min_y;
@@ -179,7 +187,7 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
         min_y = 0;
     else
         min_y = min(fabsf(bb_low3[1]), fabsf(bb_high3[1]));
-    err *= max_z / sqrtf((max_z * max_z) + (min_y * min_y) + (min_x * min_x));
+    err *= max_z / sqrtf((max_z * max_z) + (min_y * min_y) + (min_x * min_x)); // Multiply by the cosine bound
     return err * brdf * intensities; // Multiply by the constant lambertian brdf and the sum of light intensities
 }
 
@@ -192,36 +200,40 @@ Spectrum UniformSampleAllLights(const Scene *scene,
         const BSDFSampleOffsets *bsdfSampleOffsets) {
     Spectrum L(0.);
     Spectrum zero(0.);
-    Vector wi;
-    wi.x = p.x + n.x;
-    wi.y = p.y + n.y;
-    wi.z = p.z + n.z;
-    vector<cutvertex> cut;
+    Vector wi; // Normal vector to sample PBRT's BRDF
+    wi.x = n.x;
+    wi.y = n.y;
+    wi.z = n.z;
+    vector<cutvertex> cut; // Heap (based on error) of vertices in the cut
     cutvertex v;
-    Spectrum total;
-    v.l = scene->lighttree;
-    SetError(v);
-    Illuminate(v);
+    Spectrum total; // Store the total illumination for the current cut
+    v.l = scene->lighttree; // Initial cut consists only the root
+    SetError(v); // Compute it's error
+    Illuminate(v); // Compute it's illumination
     total = v.illumination;
     cut.push_back(v);
     while(cut.size() < 1000) {
-        pop_heap(cut.begin(), cut.end());
+        pop_heap(cut.begin(), cut.end()); // Get the vertex in the cut with the maximum error
         v = cut[cut.size() - 1];
         float err[3];
         float intensity[3];
         v.error.ToRGB(err);
         total.ToRGB(intensity);
+        // Check if error is below the threshold. If so, we are done
         if(err[0] <= THRESHOLD * intensity[0] && err[1] <= THRESHOLD * intensity[1] && err[2] <= THRESHOLD * intensity[2])
             break;
-        cut.pop_back();
-        total = total - v.illumination;
-        cutvertex v1, v2;
+        // If not, refine the cut by subdividing this vertex
+        cut.pop_back(); // Remove the vertex from the cut
+        total = total - v.illumination; // Remove the illumination due to this vertex
+        cutvertex v1, v2; // We will add the vertex's children to the cut
         v1.l = v.l->leftChild;
         v2.l = v.l->rightChild;
+        // Compute their errors and illumination
         SetError(v1);
         SetError(v2);
         Illuminate(v1);
         Illuminate(v2);
+        // Add them to the cut and update the total illumination
         cut.push_back(v1);
         push_heap(cut.begin(), cut.end());
         total += v1.illumination;

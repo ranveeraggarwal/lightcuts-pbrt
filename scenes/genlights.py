@@ -1,6 +1,6 @@
 import random
 
-f = open('tlights', 'w')
+#f = open('tlights', 'w')
 x1 = 1
 x2 = 100
 y1 = 1

@@ -15,19 +15,17 @@
 class LightNode
 {
 public:
-	PointLight *mainLight;
-    int index;
-	Spectrum Intensity;
-	Point minBoundBox;
+	PointLight *mainLight; // Pointer to the representative light
+	Spectrum Intensity; // Total intensity in this cluster
+	Point minBoundBox; // Bounding Box Co-ordinates
 	Point maxBoundBox;
-	LightNode *leftChild;
+	LightNode *leftChild; // Pointers to children
 	LightNode *rightChild;
-	bool isLeaf;
+	bool isLeaf; // Whether this node is a leaf, i.e., reprents a single light
 
-	//This will be called while constructing the tree
 	
-	LightNode(PointLight *leafLight);
-	LightNode();
+	LightNode(PointLight *leafLight); // Leaf constructor
+	LightNode(); // Empty constructor
 };
-LightNode * Cluster(LightNode *light1, LightNode *light2);
+LightNode * Cluster(LightNode *light1, LightNode *light2); // Function to create a parent LightNode by clustering two LightNodes
 #endif
