@@ -112,7 +112,7 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
         }
     }
     // Infinite error bound if p is inside the bounding box
-    if(inf) {
+    if(inf || dist < 0.001) {
         return -1 * intensities;
     }
     // Bound of the geometric term
