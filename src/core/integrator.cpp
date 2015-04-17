@@ -137,28 +137,35 @@ Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spe
     float vx = n[1];
     float vy = -(n[0]);
     float s = sqrtf(vx*vx + vy*vy);
+    float c = n[2];
     Point bb_low2, bb_high2;
     for(i = 0; i < 3; i++) {
         bb_low2[i] = bb_low[i] - p[i];
         bb_high2[i] = bb_high[i] - p[i];
     }
-    float c = n[2];
-    v[0][2] = vy;
-    M[0][2] += vy;
-    v[1][2] = -vx;
-    M[1][2] += -vx;
-    v[2][0] = -vy;
-    M[2][0] += -vy;
-    v[2][1] = vx;
-    M[2][1] += vx;
-    float temp = (1 - c) / (s * s);
-    int k;
-    for(i = 0; i < 3; i++) {
-        for(j = 0; j < 3; j++) {
-            for(k = 0; k < 3; k++) {
-                vsq[i][j] += v[i][k] * v[k][j];
+    if(fabsf(s) < 0.00001) {
+        if(c < 0) {
+            M[2][2] = -1;
+        }
+    }
+    else {
+        v[0][2] = vy;
+        M[0][2] += vy;
+        v[1][2] = -vx;
+        M[1][2] += -vx;
+        v[2][0] = -vy;
+        M[2][0] += -vy;
+        v[2][1] = vx;
+        M[2][1] += vx;
+        float temp = (1 - c) / (s * s);
+        int k;
+        for(i = 0; i < 3; i++) {
+            for(j = 0; j < 3; j++) {
+                for(k = 0; k < 3; k++) {
+                    vsq[i][j] += v[i][k] * v[k][j];
+                }
+                M[i][j] += vsq[i][j] * temp;
             }
-            M[i][j] += vsq[i][j] * temp;
         }
     }
     // Rotation Matrix computed
