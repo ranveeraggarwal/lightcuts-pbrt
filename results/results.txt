@@ -1,0 +1,28 @@
+200 Lights:
+
+PBRT:
+
+real	7m10.402s
+user	50m4.347s
+sys	0m1.324s
+
+Lightcuts:
+
+real	8m28.759s
+user	55m59.575s
+sys	2m27.774s
+
+1000 Lights:
+
+PBRT:
+
+real	34m36.050s
+user	255m57.447s
+sys	0m6.578s
+
+Lightcuts:
+
+real	24m40.985s
+user	169m47.335s
+sys	2m3.119s
+
