@@ -40,6 +40,7 @@
 #include <vector>
 #include <iostream>
 #define THRESHOLD 0.02
+#define MAXCUT 1000
 using namespace std;
 // Integrator Method Definitions
 Integrator::~Integrator() {
@@ -48,6 +49,7 @@ struct cutvertex_struct {
     LightNode * l;
     Spectrum error;
     Spectrum illumination;
+    Spectrum factor;
 };
 typedef struct cutvertex_struct cutvertex;
 
@@ -76,11 +78,9 @@ bool operator <(const cutvertex& a, const cutvertex& b) { // Compare cut vertice
     } while(0)
 
 // Use PBRT's illumination computation
-#define Illuminate(v) \
+#define Factor(v) \
     do { \
         PointLight *light = v.l->mainLight; \
-        Spectrum temp = light->Intensity; \
-        light->Intensity = v.l->Intensity; \
         int nSamples = 1; \
         Spectrum Ld(0.); \
         for (int j = 0; j < nSamples; ++j) { \
@@ -92,10 +92,13 @@ bool operator <(const cutvertex& a, const cutvertex& b) { // Compare cut vertice
                 rayEpsilon, time, bsdf, rng, lightSample, bsdfSample, \
                 BxDFType(BSDF_ALL & ~BSDF_SPECULAR)); \
         } \
-        v.illumination =  Ld / nSamples; \
-        light->Intensity = temp; \
+        v.factor =  (Ld / nSamples) / DistanceSquared(p, v.l->mainLight->lightPos); \
     } while(0)
 
+#define Illuminate(v) \
+    do { \
+        v.illumination = (v.factor * v.l->Intensity); \
+    } while(0)
 // Function for the upper bound on error
 Spectrum ErrorBound(Point p, Normal n, Point bb_low, Point bb_high, Point l, Spectrum brdf, Spectrum intensities) {
     double err = 1;
@@ -218,10 +221,11 @@ Spectrum UniformSampleAllLights(const Scene *scene,
     Spectrum total; // Store the total illumination for the current cut
     v.l = scene->lighttree; // Initial cut consists only the root
     SetError(v); // Compute it's error
+    Factor(v); // Compute it's factor
     Illuminate(v); // Compute it's illumination
     total = v.illumination;
     cut.push_back(v);
-    while(cut.size() < 1000) {
+    while(cut.size() < MAXCUT) {
         pop_heap(cut.begin(), cut.end()); // Get the vertex in the cut with the maximum error
         v = cut[cut.size() - 1];
         float err[3];
@@ -240,6 +244,18 @@ Spectrum UniformSampleAllLights(const Scene *scene,
         // Compute their errors and illumination
         SetError(v1);
         SetError(v2);
+	if(v1.l != v.l) {
+		Factor(v1);
+	}
+	else {
+		v1.factor = v.factor;
+	}
+	if(v2.l != v.l) {
+		Factor(v2);
+	}
+	else {
+		v2.factor = v.factor;
+	}
         Illuminate(v1);
         Illuminate(v2);
         // Add them to the cut and update the total illumination
@@ -299,53 +315,25 @@ Spectrum EstimateDirect(const Scene *scene, const Renderer *renderer,
     Vector wi;
     float lightPdf, bsdfPdf;
     VisibilityTester visibility;
-    Spectrum Li = light->Sample_L(p, rayEpsilon, lightSample, time,
+    light->Sample_L(p, rayEpsilon, lightSample, time,
                                   &wi, &lightPdf, &visibility);
+    Spectrum Li(1.);
     if (lightPdf > 0. && !Li.IsBlack()) {
         Spectrum f = bsdf->f(wo, wi, flags);
         if (!f.IsBlack() && visibility.Unoccluded(scene)) {
             // Add light's contribution to reflected radiance
             Li *= visibility.Transmittance(scene, renderer, NULL, rng, arena);
             if (light->IsDeltaLight())
-                Ld += f * Li * (AbsDot(wi, n) / lightPdf);
+                Ld += f * (AbsDot(wi, n) / lightPdf);
             else {
                 bsdfPdf = bsdf->Pdf(wo, wi, flags);
                 float weight = PowerHeuristic(1, lightPdf, 1, bsdfPdf);
-                Ld += f * Li * (AbsDot(wi, n) * weight / lightPdf);
+                Ld += f * (AbsDot(wi, n) * weight / lightPdf);
             }
         }
     }
 
-    // Sample BSDF with multiple importance sampling
-    if (!light->IsDeltaLight()) {
-        BxDFType sampledType;
-        Spectrum f = bsdf->Sample_f(wo, &wi, bsdfSample, &bsdfPdf, flags,
-                                    &sampledType);
-        if (!f.IsBlack() && bsdfPdf > 0.) {
-            float weight = 1.f;
-            if (!(sampledType & BSDF_SPECULAR)) {
-                lightPdf = light->Pdf(p, wi);
-                if (lightPdf == 0.)
-                    return Ld;
-                weight = PowerHeuristic(1, bsdfPdf, 1, lightPdf);
-            }
-            // Add light contribution from BSDF sampling
-            Intersection lightIsect;
-            Spectrum Li(0.f);
-            RayDifferential ray(p, wi, rayEpsilon, INFINITY, time);
-            if (scene->Intersect(ray, &lightIsect)) {
-                if (lightIsect.primitive->GetAreaLight() == light)
-                    Li = lightIsect.Le(-wi);
-            }
-            else
-                Li = light->Le(ray);
-            if (!Li.IsBlack()) {
-                Li *= renderer->Transmittance(scene, ray, NULL, rng, arena);
-                Ld += f * Li * AbsDot(wi, n) * weight / bsdfPdf;
-            }
-        }
-    }
-    return Ld;
+       return Ld;
 }
 
 
